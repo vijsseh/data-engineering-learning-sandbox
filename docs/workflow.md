@@ -128,14 +128,14 @@ If implementation cannot proceed because a required decision is missing, use `WA
 
 At minimum, verify:
 
-- MinIO API and Console availability;
-- MinIO administrator and student access configuration;
+- Garage S3 API availability;
+- Garage administrator and student access-key configuration;
 - Spark Master availability;
 - registration of two Spark workers;
 - worker CPU/RAM limits;
 - JupyterLab access;
 - PySpark-to-Spark connectivity;
-- read from MinIO and write to MinIO;
+- read from Garage and write to Garage;
 - persistence after restart;
 - reproducibility from a clean checkout.
 
