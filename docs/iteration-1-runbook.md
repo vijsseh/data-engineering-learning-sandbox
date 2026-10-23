@@ -46,6 +46,7 @@ The first build downloads Spark, Python, and Hadoop AWS dependencies into the cu
 - Spark Worker 1 UI: `http://localhost:8081`
 - Spark Worker 2 UI: `http://localhost:8082`
 - JupyterLab: `http://localhost:8888`
+- First Spark application UI: `http://localhost:4040`
 
 Garage does not provide a MinIO-style web Console in this setup. Use the Garage CLI through the container and the S3 API for storage operations.
 

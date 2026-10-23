@@ -54,7 +54,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 1G
+          memory: 2G
     ports:
       - "${SPARK_WORKER_1_UI_PORT:-8081}:8081"
     networks:
@@ -79,7 +79,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 1G
+          memory: 2G
     ports:
       - "${SPARK_WORKER_2_UI_PORT:-8082}:8081"
     networks:
@@ -103,6 +103,15 @@ services:
       AWS_SECRET_ACCESS_KEY: ${GARAGE_STUDENT_SECRET_KEY}
       S3_ENDPOINT: http://garage:3900
       PYSPARK_SUBMIT_ARGS: >-
+        --master spark://spark-master:7077
+        --conf spark.executor.memory=512m
+        --conf spark.executor.cores=1
+        --conf spark.cores.max=1
+        --conf spark.driver.memory=1g
+        --conf spark.driver.host=jupyter
+        --conf spark.driver.bindAddress=0.0.0.0
+        --conf spark.sql.shuffle.partitions=8
+        --conf spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version=2
         --conf spark.hadoop.fs.s3a.endpoint=http://garage:3900
         --conf spark.hadoop.fs.s3a.endpoint.region=garage
         --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
@@ -124,6 +133,7 @@ services:
         condition: service_healthy
     ports:
       - "${JUPYTER_PORT:-8888}:8888"
+      - "${SPARK_DRIVER_UI_PORT:-4040}:4040"
     volumes:
       - jupyter-work:/home/jovyan/work
       - ../notebooks:/home/jovyan/work/notebooks:ro
