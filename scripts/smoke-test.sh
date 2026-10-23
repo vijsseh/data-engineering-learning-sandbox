@@ -15,12 +15,12 @@ compose() {
 
 compose config --quiet
 
-curl -fsS http://localhost:9000/minio/health/live >/dev/null
+compose exec -T garage /garage -c /etc/garage.toml status >/dev/null
 curl -fsS http://localhost:8080 >/dev/null
 curl -fsS http://localhost:8888/lab >/dev/null
 
-if ! curl -fsS http://localhost:8080 | grep -q 'spark-worker'; then
-  printf '%s\n' 'Spark Master UI did not report registered workers.' >&2
+if ! curl -fsS http://localhost:8080 | grep -qE 'Workers \([2-9][0-9]*\)'; then
+  printf '%s\n' 'Spark Master UI did not report at least two registered workers.' >&2
   exit 1
 fi
 

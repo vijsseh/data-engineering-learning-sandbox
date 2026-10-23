@@ -2,7 +2,7 @@
 
 ## Objective
 
-Use PySpark to read a dataset from MinIO through the S3A connector, calculate a simple aggregation, and write the result back to MinIO.
+Use PySpark to read a dataset from Garage through the S3A connector, calculate a simple aggregation, and write the result back to Garage.
 
 ## Prerequisites
 
@@ -22,7 +22,7 @@ Use PySpark to read a dataset from MinIO through the S3A connector, calculate a 
 - The notebook creates a Spark session using the configured Spark Master.
 - The input is read from an `s3a://datasets/...` path.
 - The result contains one row per category.
-- The result is written to MinIO.
+- The result is written to Garage.
 - The notebook runs without hard-coded credentials.
 
 ## Suggested Starting Point
@@ -52,4 +52,4 @@ result_df.write.mode("overwrite").parquet(
 )
 ```
 
-Use environment-provided configuration for credentials and the MinIO endpoint. Do not commit secrets.
+Use environment-provided configuration for credentials and the Garage endpoint. Do not commit secrets.

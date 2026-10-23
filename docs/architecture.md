@@ -6,7 +6,7 @@ Iteration 1 is a local Linux environment for one instructor/developer user. It d
 
 Included services:
 
-- MinIO for S3-compatible object storage;
+- Garage for S3-compatible object storage;
 - Apache Spark Standalone Master;
 - two Apache Spark Workers;
 - JupyterLab with PySpark support;
@@ -29,8 +29,8 @@ Excluded from Iteration 1:
               +---------------+----------------+
               |                                |
               v                                v
-      MinIO Console/API                  JupyterLab
-       :9001 / :9000                         :8888
+      Garage S3 API                        JupyterLab
+           :3900                              :8888
               ^                                |
               |                                | PySpark
               |                                v
@@ -50,11 +50,11 @@ All containers use one private Docker network. Containers address one another by
 
 ## 3. Service Responsibilities
 
-### MinIO
+### Garage
 
 - Stores input datasets and Spark output objects.
 - Exposes an S3-compatible API to Spark and JupyterLab.
-- Exposes the administrative Console for local inspection.
+- Exposes the S3 API for Spark and JupyterLab; Garage has no MinIO-style web Console in this setup.
 - Uses a named persistent volume.
 - Provides one administrator account and one student account in the first iteration.
 - Credentials are supplied through environment variables and must not be committed.
@@ -77,7 +77,7 @@ All containers use one private Docker network. Containers address one another by
 
 - Provides the interactive browser interface for PySpark notebooks.
 - Connects to the Spark Master using the Docker service name.
-- Uses PySpark and S3A-compatible Hadoop dependencies to access MinIO.
+- Uses PySpark and S3A-compatible Hadoop dependencies to access Garage.
 - Uses one configured Jupyter account in Iteration 1.
 - May use a named volume for notebooks and local workspace data.
 
@@ -86,7 +86,7 @@ All containers use one private Docker network. Containers address one another by
 Expected service names:
 
 ```text
-minio
+garage
 spark-master
 spark-worker-1
 spark-worker-2
@@ -102,7 +102,7 @@ sandbox-net
 Expected startup dependency direction:
 
 ```text
-minio healthy
+garage healthy
     |
     +--> jupyter
 
@@ -117,15 +117,15 @@ Compose dependencies control startup order and basic readiness. They do not repl
 
 ## 5. Local Ports
 
-| Service | Container port | Host port | Purpose |
-|---|---:|---:|---|
-| MinIO S3 API | 9000 | 9000 | S3-compatible API |
-| MinIO Console | 9001 | 9001 | Browser administration |
-| Spark Master RPC | 7077 | 7077 | Worker and application connection |
-| Spark Master UI | 8080 | 8080 | Master status and workers |
-| Spark Worker 1 UI | 8081 | 8081 | Worker status |
-| Spark Worker 2 UI | 8082 | 8082 | Worker status |
-| JupyterLab | 8888 | 8888 | Notebook interface |
+| Service           | Container port | Host port | Purpose                           |
+| ----------------- | -------------: | --------: | --------------------------------- |
+| Garage S3 API     |           3900 |      3900 | S3-compatible API                 |
+| Garage Admin API  |           3903 |      3903 | Local administration API          |
+| Spark Master RPC  |           7077 |      7077 | Worker and application connection |
+| Spark Master UI   |           8080 |      8080 | Master status and workers         |
+| Spark Worker 1 UI |           8081 |      8081 | Worker status                     |
+| Spark Worker 2 UI |           8082 |      8082 | Worker status                     |
+| JupyterLab        |           8888 |      8888 | Notebook interface                |
 
 These ports are intended for local access only. They should not be exposed directly to the public internet.
 
@@ -134,11 +134,12 @@ These ports are intended for local access only. They should not be exposed direc
 Expected named volumes:
 
 ```text
-minio-data       -> MinIO data directory
+garage-meta       -> Garage metadata directory
+garage-data       -> Garage data directory
 jupyter-work     -> Jupyter notebooks and workspace (if persistence is enabled)
 ```
 
-The source datasets and generated Spark results must be stored in MinIO. A notebook filesystem is not a substitute for object-storage persistence.
+The source datasets and generated Spark results must be stored in Garage. A notebook filesystem is not a substitute for object-storage persistence.
 
 ## 7. Credentials and Configuration
 
@@ -146,11 +147,11 @@ Configuration must be provided through an untracked `.env` file created from `.e
 
 The configuration should define, at minimum:
 
-- MinIO root/admin username;
-- MinIO root/admin password;
-- student access credentials or policy inputs;
+- Garage admin access key and secret key;
+- Garage student access key and secret key;
+- bucket permissions for both keys;
 - Jupyter password or token configuration;
-- MinIO endpoint used by Spark and Jupyter;
+- Garage endpoint used by Spark and Jupyter;
 - Spark master URL.
 
 No real credentials may be committed to GitHub. The local-only example values in documentation must be clearly marked as examples.
@@ -160,34 +161,30 @@ No real credentials may be committed to GitHub. The local-only example values in
 The reference teaching workflow is:
 
 ```text
-1. Upload a small CSV or Parquet dataset to MinIO.
+1. Upload a small CSV or Parquet dataset to Garage.
 2. Open JupyterLab.
 3. Create a PySpark session targeting spark://spark-master:7077.
-4. Read the dataset through the MinIO S3A endpoint.
+4. Read the dataset through the Garage S3A endpoint.
 5. Transform and aggregate the data.
-6. Write the result back to a MinIO output prefix.
-7. Inspect the result through MinIO or a follow-up notebook.
+6. Write the result back to a Garage output prefix.
+7. Inspect the result through Garage or a follow-up notebook.
 ```
 
 Spark and Jupyter must use the internal service endpoint, for example:
 
 ```text
-http://minio:9000
+http://garage:3900
 ```
 
-The browser uses the host-mapped Console and Jupyter ports.
+The browser uses the host-mapped Jupyter port; S3 operations use the Garage API or an S3 client.
 
 ## 9. Healthchecks and Readiness
 
 Every Iteration 1 service must have a Docker healthcheck.
 
-### MinIO
+### Garage
 
-Use the MinIO liveness/readiness HTTP endpoint, such as:
-
-```text
-http://localhost:9000/minio/health/live
-```
+Use the Garage CLI status command against the configured node as the container healthcheck. The S3 API may return an authorization response for an unauthenticated request, which proves network reachability but does not replace an authenticated S3 test.
 
 ### Spark Master
 
@@ -201,7 +198,7 @@ Check that each worker process is running and reachable. A healthy worker proces
 
 Check that the Jupyter HTTP endpoint responds on port `8888`. The probe should not expose credentials in logs.
 
-Healthchecks must be used with Compose readiness dependencies where supported. They must not be treated as proof that the complete Spark-to-MinIO workflow works; that requires a functional PySpark smoke test.
+Healthchecks must be used with Compose readiness dependencies where supported. They must not be treated as proof that the complete Spark-to-Garage workflow works; that requires a functional PySpark smoke test.
 
 ## 10. Verification Layers
 
@@ -214,7 +211,7 @@ Healthchecks must be used with Compose readiness dependencies where supported. T
 
 ### Service-level verification
 
-- MinIO Console and S3 API are reachable.
+- Garage status and S3 API are reachable.
 - Spark Master UI is reachable.
 - Two workers are shown as registered.
 - JupyterLab is reachable with the configured access method.
@@ -222,8 +219,8 @@ Healthchecks must be used with Compose readiness dependencies where supported. T
 ### Functional verification
 
 - A PySpark notebook connects to the Master.
-- Spark reads a dataset from MinIO.
-- Spark writes an output to MinIO.
+- Spark reads a dataset from Garage.
+- Spark writes an output to Garage.
 - The output remains available after a restart.
 
 ## 11. Iteration 2 Extension Path
@@ -238,11 +235,11 @@ Frontend + Backend API
           |       +--> student-2 lab container
           |       +--> ...
           |
-          +--> MinIO student buckets/prefixes
+          +--> Garage student buckets/prefixes
           +--> task and submission metadata
 ```
 
-JupyterHub/DockerSpawner is the preferred first isolation option because it can create one container per student and apply per-container resource limits. MinIO isolation must later be evaluated as separate buckets, prefixes, or credentials/policies.
+JupyterHub/DockerSpawner is the preferred first isolation option because it can create one container per student and apply per-container resource limits. Garage isolation must later be evaluated as separate buckets, prefixes, or credentials/policies.
 
 ## 12. Architecture Definition of Done
 
@@ -250,8 +247,8 @@ JupyterHub/DockerSpawner is the preferred first isolation option because it can 
 - [ ] Docker network and service names are defined.
 - [ ] Local ports are defined.
 - [ ] Persistent volumes are defined.
-- [ ] MinIO, Spark, and Jupyter data flow is documented.
-- [ ] MinIO admin and student access assumptions are documented.
+- [ ] Garage, Spark, and Jupyter data flow is documented.
+- [ ] Garage admin and student access assumptions are documented.
 - [ ] Spark worker limits are documented as one CPU and 1 GB RAM each.
 - [ ] Healthcheck requirements are documented for every service.
 - [ ] Healthchecks are distinguished from functional smoke tests.
