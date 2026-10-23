@@ -77,7 +77,7 @@ All containers use one private Docker network. Containers address one another by
 
 - Provides the interactive browser interface for PySpark notebooks.
 - Connects to the Spark Master using the Docker service name.
-- Uses PySpark and S3A-compatible Hadoop dependencies to access Garage.
+- Uses PySpark and preinstalled S3A-compatible Hadoop dependencies to access Garage; runtime Maven downloads are not required.
 - Uses one configured Jupyter account in Iteration 1.
 - May use a named volume for notebooks and local workspace data.
 

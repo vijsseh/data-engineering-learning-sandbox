@@ -36,7 +36,7 @@ Then start Spark and JupyterLab:
 docker compose --env-file infra/.env -f infra/docker-compose.yml up -d --build
 ```
 
-The first build may download Spark, Python, and Hadoop dependencies. Jupyter's PySpark configuration downloads the Hadoop AWS package when the first Spark session starts unless it is already cached.
+The first build downloads Spark, Python, and Hadoop AWS dependencies into the custom Spark and Jupyter images. Runtime Spark sessions do not use Maven `--packages`; the S3A JARs are already present in the images.
 
 ## Local URLs
 
